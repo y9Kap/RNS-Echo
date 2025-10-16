@@ -27,13 +27,18 @@ APP_NAME = "example_utilities"
 def server(configpath):
     global reticulum
 
-    # Инициализация Reticulum
+    # We must first initialise Reticulum
     reticulum = RNS.Reticulum(configpath)
 
-    # Создаём identity для сервера
+    # Randomly create a new identity for our echo server
     server_identity = RNS.Identity()
 
-    # Создаём destination
+    # We create a destination that clients can query. We want
+    # to be able to verify echo replies to our clients, so we
+    # create a "single" destination that can receive encrypted
+    # messages. This way the client can send a request and be
+    # certain that no-one else than this destination was able
+    # to read it.
     echo_destination = RNS.Destination(
         server_identity,
         RNS.Destination.IN,
@@ -50,23 +55,18 @@ def server(configpath):
     announceLoop(echo_destination)
 
 def announceLoop(destination):
-    ANNOUNCE_INTERVAL = 600  # секунды между анонсами
 
     msg = (
         f"Echo server {RNS.prettyhexrep(destination.hash)} running. "
-        f"Announcing every {ANNOUNCE_INTERVAL} seconds (Ctrl-C to quit)"
+        f"Announcing every 60 seconds (Ctrl-C to quit)"
     )
     RNS.log(msg)
     print(msg, flush=True)
 
-    try:
-        while True:
-            destination.announce()
-            RNS.log("Sent announce from " + RNS.prettyhexrep(destination.hash))
-            time.sleep(ANNOUNCE_INTERVAL)
-    except KeyboardInterrupt:
-        RNS.log("Server stopped by user.")
-        sys.exit(0)
+    while True:
+        destination.announce()
+        RNS.log("Sent announce from " + RNS.prettyhexrep(destination.hash))
+        time.sleep(60)
 
 
 def server_callback(message, packet):
@@ -76,15 +76,19 @@ def server_callback(message, packet):
     if reticulum.is_connected_to_shared_instance:
         reception_rssi = reticulum.get_packet_rssi(packet.packet_hash)
         reception_snr = reticulum.get_packet_snr(packet.packet_hash)
-        if reception_rssi is not None:
-            reception_stats += f" [RSSI {reception_rssi} dBm]"
-        if reception_snr is not None:
-            reception_stats += f" [SNR {reception_snr} dB]"
+
+        if reception_rssi != None:
+            reception_stats += " [RSSI " + str(reception_rssi) + " dBm]"
+
+        if reception_snr != None:
+            reception_stats += " [SNR " + str(reception_snr) + " dBm]"
+
     else:
-        if packet.rssi is not None:
-            reception_stats += f" [RSSI {packet.rssi} dBm]"
-        if packet.snr is not None:
-            reception_stats += f" [SNR {packet.snr} dB]"
+        if packet.rssi != None:
+            reception_stats += " [RSSI " + str(packet.rssi) + " dBm]"
+
+        if packet.snr != None:
+            reception_stats += " [SNR " + str(packet.snr) + " dB]"
 
     RNS.log("Received packet from echo client, proof sent" + reception_stats)
 
@@ -304,7 +308,7 @@ if __name__ == "__main__":
             else:
                 timeoutarg = None
 
-            if args.destination == None:
+            if (args.destination == None):
                 print("")
                 parser.print_help()
                 print("")
