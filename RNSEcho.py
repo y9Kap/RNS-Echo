@@ -8,6 +8,7 @@
 import argparse
 import sys
 import time
+import os
 
 import RNS
 
@@ -30,8 +31,30 @@ def server(configpath):
     # We must first initialise Reticulum
     reticulum = RNS.Reticulum(configpath)
 
-    # Randomly create a new identity for our echo server
-    server_identity = RNS.Identity()
+    identitypath = configpath + "/echo_identity"
+
+    if os.path.isfile(identitypath):
+        try:
+            server_identity = RNS.Identity.from_file(identitypath)
+            if server_identity != None:
+                RNS.log("Loaded Primary Identity %s from %s" % (str(server_identity), identitypath))
+            else:
+                RNS.log("Could not load the Primary Identity from "+identitypath, RNS.LOG_ERROR)
+                nomadnet.panic()
+        except Exception as e:
+            RNS.log("Could not load the Primary Identity from "+identitypath, RNS.LOG_ERROR)
+            RNS.log("The contained exception was: %s" % (str(e)), RNS.LOG_ERROR)
+            nomadnet.panic()
+    else:
+        try:
+            RNS.log("No Primary Identity file found, creating new...")
+            server_identity = RNS.Identity()
+            server_identity.to_file(identitypath)
+            RNS.log("Created new Primary Identity %s" % (str(server_identity)))
+        except Exception as e:
+            RNS.log("Could not create and save a new Primary Identity", RNS.LOG_ERROR)
+            RNS.log("The contained exception was: %s" % (str(e)), RNS.LOG_ERROR)
+            nomadnet.panic()
 
     # We create a destination that clients can query. We want
     # to be able to verify echo replies to our clients, so we
